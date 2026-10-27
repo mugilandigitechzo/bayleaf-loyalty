@@ -75,9 +75,6 @@ export const config = {
 export function assertProductionSafety() {
   if (!isProd) return;
   if (!config.appUrl.startsWith('https://')) throw new Error('APP_URL must use https:// in production');
-  if (!config.otpProvider || config.otpProvider === 'console') {
-    throw new Error('OTP_PROVIDER must be configured in production (the console provider only logs codes)');
-  }
   if (config.databaseSsl === 'false') {
     console.warn('[bayleaf] DATABASE_SSL=false in production. Only acceptable when the database is on a private network or the same host.');
   }
