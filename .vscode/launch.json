@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch Bay Leaf (Dev)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/dev.mjs",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Launch Server Only",
+      "type": "node",
+      "request": "launch",
+      "runtimeArgs": ["--import", "tsx"],
+      "args": ["server/index.ts"],
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}

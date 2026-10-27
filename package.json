@@ -1,0 +1,35 @@
+{
+  "name": "bayleaf-loyalty",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bay Leaf digital loyalty platform: customer card, staff counter and admin portal on one backend.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "npm run build:web && npm run typecheck",
+    "build:web": "node scripts/build-web.mjs",
+    "start": "NODE_ENV=production node --import tsx server/index.ts",
+    "migrate": "node --import tsx server/db/migrate.ts",
+    "seed": "node --import tsx server/db/seed.ts",
+    "create-admin": "node --import tsx server/db/create-admin.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit",
+    "test": "node --import tsx --test --test-concurrency=1 tests/api/*.test.ts",
+    "test:ui": "node --import tsx --test --test-concurrency=1 tests/ui/*.test.ts",
+    "test:all": "npm test && npm run test:ui"
+  },
+  "dependencies": {
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "tsx": "^4.23.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.28.0",
+    "playwright": "^1.63.0",
+    "typescript": "^6.0.0"
+  }
+}
