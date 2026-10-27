@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "npm run build:web",
+  "buildCommand": "npm run build:web && npm run build:api",
   "outputDirectory": "dist/web",
   "rewrites": [
     {

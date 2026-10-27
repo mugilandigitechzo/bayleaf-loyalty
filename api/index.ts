@@ -1,6 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { buildApp } from '../server/app.ts';
-import { getDb } from '../server/db/index.ts';
+import { buildApp } from '../server/app.js';
 
 const app = buildApp({ serveWeb: false });
 
