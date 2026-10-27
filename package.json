@@ -9,9 +9,8 @@
   },
   "scripts": {
     "dev": "node scripts/dev.mjs",
-    "build": "npm run build:web && npm run build:api && npm run typecheck",
+    "build": "npm run build:web && npm run typecheck",
     "build:web": "node scripts/build-web.mjs",
-    "build:api": "node scripts/build-api.mjs",
     "start": "NODE_ENV=production node --import tsx server/index.ts",
     "migrate": "node --import tsx server/db/migrate.ts",
     "seed": "node --import tsx server/db/seed.ts",
