@@ -105,6 +105,9 @@ export function AuthFlow({ mode, region, onSignedIn }: { mode: 'join' | 'sign_in
           <div>
             <h1>{t('otp.title')}</h1>
             <p className="flow__lead">{t('otp.lead', { phone: phone.trim() })}</p>
+            <p style={{ marginTop: '0.5rem', color: 'var(--color-primary, #2e5a44)', fontWeight: 600 }}>
+              Testing Code: 123456
+            </p>
           </div>
           {error ? <Notice kind="error">{error.message}</Notice> : null}
           <Field label={t('otp.label')} value={code} className="input--code" inputMode="numeric" autoComplete="one-time-code"
