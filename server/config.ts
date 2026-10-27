@@ -33,8 +33,9 @@ function key32(name: string, devSeed: string): Buffer {
   const v = env[name];
   if (v) {
     const b = Buffer.from(v, 'base64');
-    if (b.length !== 32) throw new Error(`${name} must be 32 bytes, base64-encoded (openssl rand -base64 32)`);
-    return b;
+    if (b.length === 32) return b;
+    console.warn(`[bayleaf] ${name} is not 32 bytes base64-encoded. Deriving a safe 32-byte key automatically.`);
+    return crypto.createHash('sha256').update(v).digest();
   }
   // Deterministic dev/preview key so local and serverless invocations survive without hard failing
   return crypto.createHash('sha256').update('bayleaf-dev-only:' + devSeed).digest();
