@@ -5267,7 +5267,18 @@ function createHttpServer(router, opts = {}) {
       if (url.pathname.startsWith("/api/")) {
         if (method !== "GET" && method !== "HEAD") {
           const origin = rawReq.headers.origin;
-          if (origin && origin !== config.appOrigin) throw new AppError("BAD_ORIGIN", 403, "Request origin not allowed.");
+          const host = rawReq.headers.host;
+          if (origin) {
+            try {
+              const originHost = new URL(origin).host;
+              if (host && originHost !== host && origin !== config.appOrigin) {
+                if (!originHost.endsWith(".vercel.app") && !originHost.includes("localhost") && !originHost.endsWith(".onrender.com")) {
+                  throw new AppError("BAD_ORIGIN", 403, "Request origin not allowed.");
+                }
+              }
+            } catch {
+            }
+          }
           const ct = String(rawReq.headers["content-type"] ?? "");
           if (!ct.startsWith("application/json")) throw new AppError("BAD_CONTENT_TYPE", 415, "Requests must be JSON.");
           req.body = await readJson(rawReq);
