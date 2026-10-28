@@ -30,7 +30,6 @@ export async function requireStaff(req: Req, perm: Permission): Promise<{ s: Sta
 export async function requireCustomer(req: Req, scope: 'any' | 'verified' = 'any') {
   let s = await getCustomerSession(getDb(), req.cookies[CUSTOMER_COOKIE]);
   if (!s) {
-    // Auto-login to the first demo customer or create one on the fly for direct card access
     const db = getDb();
     let cust = (await db.query("SELECT id FROM customers ORDER BY created_at LIMIT 1")).rows[0];
     if (!cust) {
@@ -43,7 +42,24 @@ export async function requireCustomer(req: Req, scope: 'any' | 'verified' = 'any
       });
       cust = { id: res.customerId };
     }
+    // Make sure Card 1 is active on this customer
+    const { ensureActiveCard, lockCustomer } = await import('../services/loyalty.ts');
+    await db.transaction(async (tx) => {
+      await lockCustomer(tx, cust.id);
+      await ensureActiveCard(tx, cust.id);
+    });
     s = { sessionId: 'direct-customer-session', customerId: cust.id, scope: 'verified' };
+  } else {
+    // Check if the current customer has an active card, if not activate Card 1
+    const db = getDb();
+    const hasActive = (await db.query("SELECT 1 FROM customer_cards WHERE customer_id = $1 AND status = 'active'", [s.customerId])).rows[0];
+    if (!hasActive) {
+      const { ensureActiveCard, lockCustomer } = await import('../services/loyalty.ts');
+      await db.transaction(async (tx) => {
+        await lockCustomer(tx, s.customerId);
+        await ensureActiveCard(tx, s.customerId);
+      });
+    }
   }
   return s;
 }

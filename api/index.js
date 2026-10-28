@@ -4455,6 +4455,19 @@ var init_phone = __esm({
 });
 
 // server/services/loyalty.ts
+var loyalty_exports = {};
+__export(loyalty_exports, {
+  addCorrectionVisit: () => addCorrectionVisit,
+  buildState: () => buildState,
+  ensureActiveCard: () => ensureActiveCard,
+  lockCustomer: () => lockCustomer,
+  recordVisit: () => recordVisit,
+  redeemReward: () => redeemReward,
+  redemptionHistory: () => redemptionHistory,
+  setRewardRevoked: () => setRewardRevoked,
+  undoLastVisit: () => undoLastVisit,
+  visitHistory: () => visitHistory
+});
 async function lockCustomer(tx, customerId) {
   const r = await tx.query("SELECT * FROM customers WHERE id = $1 FOR UPDATE", [customerId]);
   if (!r.rows[0]) throw Errors.notFound("customer");
@@ -6449,7 +6462,22 @@ async function requireCustomer(req, scope = "any") {
       });
       cust = { id: res.customerId };
     }
+    const { ensureActiveCard: ensureActiveCard2, lockCustomer: lockCustomer2 } = await Promise.resolve().then(() => (init_loyalty(), loyalty_exports));
+    await db2.transaction(async (tx) => {
+      await lockCustomer2(tx, cust.id);
+      await ensureActiveCard2(tx, cust.id);
+    });
     s = { sessionId: "direct-customer-session", customerId: cust.id, scope: "verified" };
+  } else {
+    const db2 = getDb();
+    const hasActive = (await db2.query("SELECT 1 FROM customer_cards WHERE customer_id = $1 AND status = 'active'", [s.customerId])).rows[0];
+    if (!hasActive) {
+      const { ensureActiveCard: ensureActiveCard2, lockCustomer: lockCustomer2 } = await Promise.resolve().then(() => (init_loyalty(), loyalty_exports));
+      await db2.transaction(async (tx) => {
+        await lockCustomer2(tx, s.customerId);
+        await ensureActiveCard2(tx, s.customerId);
+      });
+    }
   }
   return s;
 }
