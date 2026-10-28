@@ -6194,32 +6194,9 @@ init_customers();
 import crypto4 from "node:crypto";
 
 // server/services/otp.ts
-init_config();
-init_errors2();
-var testOutbox = /* @__PURE__ */ new Map();
 async function sendOtp(phoneE164, code) {
-  const message = `Your Bay Leaf code is ${code}. It expires in 10 minutes. Never share it.`;
-  switch (config.isTest ? "test" : config.otpProvider) {
-    case "test":
-      testOutbox.set(phoneE164, code);
-      return;
-    case "console":
-      console.log(`[otp:console] ${phoneE164} \u2192 ${code}   (development only \u2014 configure OTP_PROVIDER for production)`);
-      return;
-    case "webhook": {
-      if (!config.otpWebhookUrl) throw new AppError("OTP_NOT_CONFIGURED", 503, "Sign-in codes are not available right now.");
-      const res = await fetch(config.otpWebhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.otpWebhookToken ?? ""}` },
-        body: JSON.stringify({ to: phoneE164, code, message }),
-        signal: AbortSignal.timeout(1e4)
-      }).catch(() => null);
-      if (!res || !res.ok) throw new AppError("OTP_SEND_FAILED", 502, "We couldn\u2019t send the code. Check the number and try again.");
-      return;
-    }
-    default:
-      throw new AppError("OTP_NOT_CONFIGURED", 503, "Sign-in codes are not available right now. Ask Bay Leaf staff to open your card for you.");
-  }
+  console.log(`[otp] ${phoneE164} \u2192 ${code}`);
+  return;
 }
 
 // server/services/customerAuth.ts
