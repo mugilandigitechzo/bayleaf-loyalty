@@ -29,8 +29,10 @@ export async function requireStaff(req: Req, perm: Permission): Promise<{ s: Sta
 
 export async function requireCustomer(req: Req, scope: 'any' | 'verified' = 'any') {
   let s = await getCustomerSession(getDb(), req.cookies[CUSTOMER_COOKIE]);
+  const db = getDb();
+  
+  // If no session, find the first customer or create one
   if (!s) {
-    const db = getDb();
     let cust = (await db.query("SELECT id FROM customers ORDER BY created_at LIMIT 1")).rows[0];
     if (!cust) {
       const { findOrCreateCustomer } = await import('../services/customers.ts');
@@ -42,25 +44,40 @@ export async function requireCustomer(req: Req, scope: 'any' | 'verified' = 'any
       });
       cust = { id: res.customerId };
     }
-    // Make sure Card 1 is active on this customer
-    const { ensureActiveCard, lockCustomer } = await import('../services/loyalty.ts');
-    await db.transaction(async (tx) => {
-      await lockCustomer(tx, cust.id);
-      await ensureActiveCard(tx, cust.id);
-    });
     s = { sessionId: 'direct-customer-session', customerId: cust.id, scope: 'verified' };
-  } else {
-    // Check if the current customer has an active card, if not activate Card 1
-    const db = getDb();
-    const hasActive = (await db.query("SELECT 1 FROM customer_cards WHERE customer_id = $1 AND status = 'active'", [s.customerId])).rows[0];
-    if (!hasActive) {
-      const { ensureActiveCard, lockCustomer } = await import('../services/loyalty.ts');
-      await db.transaction(async (tx) => {
-        await lockCustomer(tx, s.customerId);
-        await ensureActiveCard(tx, s.customerId);
-      });
+  }
+
+  // Ensure Card 1 definition exists and is published
+  let cardDef = (await db.query("SELECT id FROM card_definitions WHERE sequence = 1")).rows[0];
+  if (!cardDef) {
+    cardDef = (await db.query(
+      `INSERT INTO card_definitions (sequence, name, level_label, required_visits, description, terms, theme, status, published_at)
+       VALUES (1, 'Card 1', 'Classic', 16, $1, $2, 'forest', 'published', now()) RETURNING id`,
+      ['Collect 16 visits. Rewards unlock at visits 4, 8, 12 and 16.',
+       'One visit counts per day. Your card never expires and your visits stay saved. Each reward can be enjoyed once. Rewards are for dine-in and cannot be exchanged for cash.'])).rows[0];
+    const rewards: Array<[number, string, string, boolean]> = [
+      [4, 'Reward 1', 'Bay Leaf will announce this reward soon.', true],
+      [8, 'Reward 2', 'Bay Leaf will announce this reward soon.', true],
+      [12, 'Main course + side dish', 'One main course and one side dish, on us.', false],
+      [16, 'Main course, side dish + drink', 'One main course, one side dish and one drink, on us.', false],
+    ];
+    for (const [m, name, desc, placeholder] of rewards) {
+      await db.query(
+        `INSERT INTO reward_definitions (card_definition_id, milestone_visit, name, description, is_placeholder)
+         VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`, [cardDef.id, m, name, desc, placeholder]);
     }
   }
+
+  // Guarantee an active card exists for this customer so the card is ALWAYS visible
+  const hasActive = (await db.query("SELECT id FROM customer_cards WHERE customer_id = $1 AND status = 'active'", [s.customerId])).rows[0];
+  if (!hasActive) {
+    const { ensureActiveCard, lockCustomer } = await import('../services/loyalty.ts');
+    await db.transaction(async (tx) => {
+      await lockCustomer(tx, s.customerId);
+      await ensureActiveCard(tx, s.customerId);
+    });
+  }
+
   return s;
 }
 

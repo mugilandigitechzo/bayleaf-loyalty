@@ -6449,8 +6449,8 @@ async function requireStaff(req, perm) {
 }
 async function requireCustomer(req, scope = "any") {
   let s = await getCustomerSession(getDb(), req.cookies[CUSTOMER_COOKIE]);
+  const db2 = getDb();
   if (!s) {
-    const db2 = getDb();
     let cust = (await db2.query("SELECT id FROM customers ORDER BY created_at LIMIT 1")).rows[0];
     if (!cust) {
       const { findOrCreateCustomer: findOrCreateCustomer2 } = await Promise.resolve().then(() => (init_customers(), customers_exports));
@@ -6462,22 +6462,39 @@ async function requireCustomer(req, scope = "any") {
       });
       cust = { id: res.customerId };
     }
+    s = { sessionId: "direct-customer-session", customerId: cust.id, scope: "verified" };
+  }
+  let cardDef = (await db2.query("SELECT id FROM card_definitions WHERE sequence = 1")).rows[0];
+  if (!cardDef) {
+    cardDef = (await db2.query(
+      `INSERT INTO card_definitions (sequence, name, level_label, required_visits, description, terms, theme, status, published_at)
+       VALUES (1, 'Card 1', 'Classic', 16, $1, $2, 'forest', 'published', now()) RETURNING id`,
+      [
+        "Collect 16 visits. Rewards unlock at visits 4, 8, 12 and 16.",
+        "One visit counts per day. Your card never expires and your visits stay saved. Each reward can be enjoyed once. Rewards are for dine-in and cannot be exchanged for cash."
+      ]
+    )).rows[0];
+    const rewards = [
+      [4, "Reward 1", "Bay Leaf will announce this reward soon.", true],
+      [8, "Reward 2", "Bay Leaf will announce this reward soon.", true],
+      [12, "Main course + side dish", "One main course and one side dish, on us.", false],
+      [16, "Main course, side dish + drink", "One main course, one side dish and one drink, on us.", false]
+    ];
+    for (const [m, name, desc, placeholder] of rewards) {
+      await db2.query(
+        `INSERT INTO reward_definitions (card_definition_id, milestone_visit, name, description, is_placeholder)
+         VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,
+        [cardDef.id, m, name, desc, placeholder]
+      );
+    }
+  }
+  const hasActive = (await db2.query("SELECT id FROM customer_cards WHERE customer_id = $1 AND status = 'active'", [s.customerId])).rows[0];
+  if (!hasActive) {
     const { ensureActiveCard: ensureActiveCard2, lockCustomer: lockCustomer2 } = await Promise.resolve().then(() => (init_loyalty(), loyalty_exports));
     await db2.transaction(async (tx) => {
-      await lockCustomer2(tx, cust.id);
-      await ensureActiveCard2(tx, cust.id);
+      await lockCustomer2(tx, s.customerId);
+      await ensureActiveCard2(tx, s.customerId);
     });
-    s = { sessionId: "direct-customer-session", customerId: cust.id, scope: "verified" };
-  } else {
-    const db2 = getDb();
-    const hasActive = (await db2.query("SELECT 1 FROM customer_cards WHERE customer_id = $1 AND status = 'active'", [s.customerId])).rows[0];
-    if (!hasActive) {
-      const { ensureActiveCard: ensureActiveCard2, lockCustomer: lockCustomer2 } = await Promise.resolve().then(() => (init_loyalty(), loyalty_exports));
-      await db2.transaction(async (tx) => {
-        await lockCustomer2(tx, s.customerId);
-        await ensureActiveCard2(tx, s.customerId);
-      });
-    }
   }
   return s;
 }
